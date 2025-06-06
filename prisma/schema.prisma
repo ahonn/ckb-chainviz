@@ -1,0 +1,63 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Block {
+  id               Int           @id @default(autoincrement())
+  hash             String        @unique
+  number           BigInt        @unique
+  timestamp        DateTime
+  miner            String
+  reward           BigInt
+  transactionCount Int
+  proposalsCount   Int
+  unclesCount      Int
+  size             BigInt
+  transactions     Transaction[]
+  proposals        Json
+  uncles           Json
+  version          Int
+  parentHash       String
+  compactTarget    String
+  nonce            String
+  epoch            String
+  dao              String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Transaction {
+  id          Int      @id @default(autoincrement())
+  hash        String   @unique
+  block       Block?   @relation(fields: [blockId], references: [id])
+  blockId     Int?
+  status      TxStatus @default(PENDING)
+  fee         BigInt
+  size        BigInt
+  cycles      BigInt
+  version     Int
+  cellDeps    Json
+  headerDeps  Json
+  witnesses   Json
+  inputs      Json
+  outputs     Json
+  outputsData Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum TxStatus {
+  PENDING
+  PROPOSED
+  COMMITTED
+} 
