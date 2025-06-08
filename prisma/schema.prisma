@@ -36,28 +36,90 @@ model Block {
 }
 
 model Transaction {
-  id          Int      @id @default(autoincrement())
-  hash        String   @unique
-  block       Block?   @relation(fields: [blockId], references: [id])
-  blockId     Int?
-  status      TxStatus @default(PENDING)
-  fee         BigInt
-  size        BigInt
-  cycles      BigInt
-  version     Int
-  cellDeps    Json
-  headerDeps  Json
-  witnesses   Json
-  inputs      Json
-  outputs     Json
-  outputsData Json
+  id         Int        @id @default(autoincrement())
+  hash       String     @unique
+  block      Block?     @relation(fields: [blockId], references: [id])
+  blockId    Int?
+  status     TxStatus   @default(PENDING)
+  fee        BigInt
+  size       BigInt
+  cycles     BigInt
+  version    Int
+  witnesses  Json
+  cellDeps   CellDep[]
+  headerDeps HeaderDep[]
+  inputs     Input[]
+  outputs    Output[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([blockId])
+}
+
+model CellDep {
+  id             Int         @id @default(autoincrement())
+  transaction    Transaction @relation(fields: [txHash], references: [hash])
+  txHash         String
+  outPointTxHash String
+  outPointIndex  Int
+  depType        String
+
+  @@index([txHash])
+}
+
+model HeaderDep {
+  id          Int         @id @default(autoincrement())
+  transaction Transaction @relation(fields: [txHash], references: [hash])
+  txHash      String
+  blockHash   String
+
+  @@index([txHash])
+}
+
+model Input {
+  id             Int         @id @default(autoincrement())
+  transaction    Transaction @relation(fields: [txHash], references: [hash])
+  txHash         String
+  previousTxHash String
+  previousIndex  BigInt
+  since          String
+
+  @@unique([previousTxHash, previousIndex])
+  @@index([txHash])
+}
+
+model Output {
+  id           Int         @id @default(autoincrement())
+  transaction  Transaction @relation(fields: [txHash], references: [hash])
+  txHash       String
+  index        Int
+  capacity     BigInt
+  lockScriptId Int
+  lock         Script      @relation(name: "lock", fields: [lockScriptId], references: [id])
+  typeScriptId Int?
+  type         Script?     @relation(name: "type", fields: [typeScriptId], references: [id])
+  data         String?
+
+  @@unique([txHash, index])
+  @@index([txHash])
+  @@index([lockScriptId])
+  @@index([typeScriptId])
+}
+
+model Script {
+  id              Int      @id @default(autoincrement())
+  codeHash        String
+  hashType        String
+  args            String
+  outputsWithLock Output[] @relation("lock")
+  outputsWithType Output[] @relation("type")
+
+  @@unique([codeHash, hashType, args])
 }
 
 enum TxStatus {
   PENDING
   PROPOSED
   COMMITTED
-} 
+}
