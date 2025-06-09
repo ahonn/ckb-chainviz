@@ -4,6 +4,14 @@ import { PrismaService } from '../database/prisma.service';
 import { BlockService } from './block.service';
 import { TransactionService } from './transaction.service';
 import { Block, NewTransactionEntry } from '../ckb/ckb.interface';
+import { EventService } from '../../api/websocket/event.service';
+import {
+  BlockFinalizedPayload,
+  TransactionPendingPayload,
+  TransactionProposedPayload,
+  TransactionConfirmedPayload,
+  TransactionRejectedPayload,
+} from '../../api/websocket/websocket.types';
 
 @Injectable()
 export class SyncService implements OnModuleInit {
@@ -14,6 +22,7 @@ export class SyncService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly blockService: BlockService,
     private readonly transactionService: TransactionService,
+    private readonly eventService: EventService,
   ) {}
 
   async onModuleInit() {
@@ -39,10 +48,22 @@ export class SyncService implements OnModuleInit {
                 prisma,
               );
 
-              await this.transactionService.updateProposedTransactions(
-                block.proposals,
-                prisma,
-              );
+              for (const proposalHash of block.proposals) {
+                await this.transactionService.updateProposedTransactions(
+                  [proposalHash],
+                  prisma,
+                );
+                const proposedPayload: TransactionProposedPayload = {
+                  txHash: proposalHash,
+                  timestamp: new Date().toISOString(),
+                  context: {
+                    blockNumber: savedBlock.number.toString(),
+                    blockHash: savedBlock.hash,
+                  },
+                };
+                this.eventService.emitTransactionProposed(proposedPayload);
+              }
+
               for (const [i, tx] of block.transactions.entries()) {
                 await this.transactionService.processCommittedTx(
                   tx,
@@ -50,7 +71,34 @@ export class SyncService implements OnModuleInit {
                   prisma,
                   i === 0,
                 );
+                const confirmedPayload: TransactionConfirmedPayload = {
+                  txHash: tx.hash,
+                  timestamp: new Date().toISOString(),
+                  context: {
+                    blockNumber: savedBlock.number.toString(),
+                    blockHash: savedBlock.hash,
+                    txIndexInBlock: i,
+                  },
+                };
+                this.eventService.emitTransactionConfirmed(confirmedPayload);
               }
+
+              const transactionSummaries = block.transactions.map((tx) => ({
+                txHash: tx.hash,
+              }));
+              const blockPayload: BlockFinalizedPayload = {
+                blockNumber: savedBlock.number.toString(),
+                blockHash: savedBlock.hash,
+                timestamp: savedBlock.timestamp.toISOString(),
+                miner: savedBlock.miner,
+                reward: savedBlock.reward.toString(),
+                transactionCount: savedBlock.transactionCount,
+                proposalsCount: savedBlock.proposalsCount,
+                unclesCount: savedBlock.unclesCount,
+                transactions: transactionSummaries,
+              };
+              this.eventService.emitBlockFinalized(blockPayload);
+
               this.logger.log(
                 `Successfully processed block #${savedBlock.number}`,
               );
@@ -77,6 +125,16 @@ export class SyncService implements OnModuleInit {
           try {
             const parsedTx = JSON.parse(txEntry) as NewTransactionEntry;
             await this.transactionService.processPendingTx(parsedTx);
+
+            const pendingPayload: TransactionPendingPayload = {
+              txHash: parsedTx.transaction.hash,
+              timestamp: new Date().toISOString(),
+              fee: parsedTx.fee,
+              size: parsedTx.size,
+              cycles: parsedTx.cycles,
+            };
+            this.eventService.emitTransactionPending(pendingPayload);
+
             this.logger.log(
               `New Pending Transaction: ${parsedTx.transaction.hash}`,
             );
@@ -128,6 +186,13 @@ export class SyncService implements OnModuleInit {
         async (txEntry: string) => {
           try {
             const parsedTx = JSON.parse(txEntry) as NewTransactionEntry;
+            const rejectedPayload: TransactionRejectedPayload = {
+              txHash: parsedTx.transaction.hash,
+              timestamp: new Date().toISOString(),
+              reason: 'Transaction rejected by mempool',
+            };
+            this.eventService.emitTransactionRejected(rejectedPayload);
+
             await this.transactionService.deleteTransaction(
               parsedTx.transaction.hash,
             );

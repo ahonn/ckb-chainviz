@@ -49,7 +49,7 @@ Clients manage subscriptions by sending messages to the server.
 Provides macroscopic events about the blockchain's overall state.
 
 - **Event: `block.finalized`**
-  - **Description**: Fired when a new block is confirmed as part of the canonical chain. The payload includes summaries of all transactions committed in this block, making it ideal for real-time visualization without requiring follow-up API calls.
+  - **Description**: Fired when a new block is confirmed as part of the canonical chain. The payload includes summaries of all transactions confirmed in this block, making it ideal for real-time visualization without requiring follow-up API calls.
   - **Payload**:
     ```json
     {
@@ -119,7 +119,7 @@ Provides fine-grained events about the lifecycle of individual transactions.
     }
     ```
 
-- **Event: `transaction.committed`**
+- **Event: `transaction.confirmed`**
   - **Description**: Fired when a transaction is confirmed on-chain (i.e., its containing block is finalized). This marks the successful end of its lifecycle.
   - **Payload**:
     ```json

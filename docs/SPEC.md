@@ -112,7 +112,7 @@ model Transaction {
 enum TxStatus {
   PENDING   // In mempool
   PROPOSED  // In proposal zone
-  COMMITTED // Included in a finalized block
+  CONFIRMED // Included in a finalized block
 }
 ```
 
@@ -158,7 +158,7 @@ The API is divided into a WebSocket interface for real-time events and a REST AP
 
 -   **Event: `transaction.pending`**: A transaction enters the mempool.
 -   **Event: `transaction.proposed`**: A transaction is included in a block's proposal zone.
--   **Event: `transaction.committed`**: A transaction is confirmed on-chain.
+-   **Event: `transaction.confirmed`**: A transaction is confirmed on-chain.
 -   **Event: `transaction.rejected`**: A transaction is rejected by the mempool. (This event is pushed but the transaction is not stored in the DB).
 
 ### 4.2. HTTP REST API
@@ -189,11 +189,11 @@ This is the core logic of the backend service.
         1.  The service fetches the full block data using the header's hash.
         2.  A `Block` record is created in the database.
         3.  For each transaction hash in the block's `proposals`, the corresponding `Transaction` record in the DB is updated to `status: PROPOSED`. A `transaction.proposed` event is pushed.
-        4.  For each transaction in the block's `transactions`, the corresponding DB record is updated to `status: COMMITTED`. A `transaction.committed` event is pushed.
+        4.  For each transaction in the block's `transactions`, the corresponding DB record is updated to `status: CONFIRMED`. A `transaction.confirmed` event is pushed.
         5.  Finally, a `block.finalized` event is pushed with the full block summary.
 4.  **Handling Reorganizations**: The service must track the canonical chain. When a `new_tip_header` points to a block whose parent is not the previous tip, a reorg is detected. The service must:
     -   Identify the detached blocks.
-    -   Revert the status of transactions within those blocks (e.g., from `COMMITTED` back to `PENDING`).
+    -   Revert the status of transactions within those blocks (e.g., from `CONFIRMED` back to `PENDING`).
     -   Process the new canonical blocks.
     -   Push a `chain.reorg` event to notify clients.
 

@@ -121,5 +121,5 @@ model Script {
 enum TxStatus {
   PENDING
   PROPOSED
-  COMMITTED
+  CONFIRMED
 }

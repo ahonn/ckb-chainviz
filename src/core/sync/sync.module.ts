@@ -3,9 +3,10 @@ import { SyncService } from './sync.service';
 import { BlockService } from './block.service';
 import { TransactionService } from './transaction.service';
 import { CkbModule } from '../ckb/ckb.module';
+import { WebSocketModule } from '../../api/websocket/websocket.module';
 
 @Module({
-  imports: [CkbModule],
+  imports: [CkbModule, WebSocketModule],
   providers: [SyncService, BlockService, TransactionService],
   exports: [SyncService],
 })

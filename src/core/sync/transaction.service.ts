@@ -97,7 +97,7 @@ export class TransactionService {
 
       const txData = {
         blockId,
-        status: 'COMMITTED' as const,
+        status: 'CONFIRMED' as const,
         fee: existingTx?.fee ?? BigInt(0),
         size: existingTx?.size ?? BigInt(0),
         cycles: existingTx?.cycles ?? BigInt(0),
