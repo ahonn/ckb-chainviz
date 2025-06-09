@@ -149,65 +149,178 @@ Provides fine-grained events about the lifecycle of individual transactions.
 
 ## 3. HTTP REST API
 
-The HTTP API provides access to the current state and historical data of all blockchain resources.
+The HTTP REST API provides access to the current **state** of blockchain resources. It follows RESTful principles and returns JSON responses. All endpoints use standard HTTP status codes and support CORS for web applications.
 
-### 3.1. General Conventions
+### 3.1. Base URL
 
-- **Base URL**: `/api/v1`
-- **Success Response**: All successful `GET` requests return `200 OK` with a body of `{ "data": ... }`.
-- **Pagination**: Collection endpoints return a `pagination` object: `{ "total": 1234, "limit": 100, "page": 1 }`.
-- **Data Types**: All hashes and large integers (e.g., `u64`, `u128`, `capacity`) are returned as strings.
+- **Endpoint**: `http://your-api-domain.com/api/` (or `https://`)
+- **Content-Type**: `application/json`
 
-### 3.2. Endpoints
+### 3.2. Common Response Format
 
-#### Chain
+All API responses follow a consistent format:
 
-- **`GET /chain/info`**
-  - **Description**: Retrieves current, high-level information about the blockchain.
-  - **Response**:
-    ```json
-    {
-      "data": {
-        "chain": "ckb_testnet",
-        "tipBlockNumber": "12345678",
-        "tipBlockHash": "0x...ffaa",
-        "epoch": "3000.123.1024",
-        "difficulty": "0x123abc...",
-        "medianTime": "2023-10-27T09:59:50.000Z"
-      }
+```json
+{
+  "success": true,
+  "data": { ... },
+  "pagination": {
+    "limit": 20,
+    "offset": 0,
+    "total": 1500
+  }
+}
+```
+
+For error responses:
+```json
+{
+  "success": false,
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "Block not found"
+  }
+}
+```
+
+### 3.3. Block API
+
+#### Get Latest Block
+- **Endpoint**: `GET /api/blocks/latest`
+- **Description**: Returns the most recent finalized block.
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "blockNumber": "12345678",
+      "blockHash": "0x...ffaa",
+      "timestamp": "2023-10-27T10:00:00.000Z",
+      "parentHash": "0x...eeff",
+      "miner": "ckb...xxxx",
+      "reward": "123456789",
+      "transactionCount": 50,
+      "proposalsCount": 120,
+      "unclesCount": 1,
+      "size": "2048000"
     }
-    ```
+  }
+  ```
 
-#### Mempool
+#### Get Block by Number
+- **Endpoint**: `GET /api/blocks/:number`
+- **Description**: Returns a specific block by its number.
+- **Parameters**:
+  - `number` (path): Block number (integer)
+- **Response**: Same as latest block format
 
-- **`GET /mempool/info`**
-  - **Description**: Retrieves statistics about the transaction mempool.
-  - **Response**:
-    ```json
-    {
-      "data": {
-        "pendingCount": 1234,
-        "proposedCount": 2345,
-        "totalSizeKb": 8192,
-        "totalCycles": "150000000000",
-        "minFeeRate": "1000"
+#### Get Block by Hash
+- **Endpoint**: `GET /api/blocks/:hash`
+- **Description**: Returns a specific block by its hash.
+- **Parameters**:
+  - `hash` (path): Block hash (hex string)
+- **Response**: Same as latest block format
+
+#### List Blocks
+- **Endpoint**: `GET /api/blocks`
+- **Description**: Returns a paginated list of blocks in descending order (newest first).
+- **Query Parameters**:
+  - `limit` (optional): Number of blocks to return (default: 20, max: 100)
+  - `offset` (optional): Number of blocks to skip (default: 0)
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "blockNumber": "12345678",
+        "blockHash": "0x...ffaa",
+        "timestamp": "2023-10-27T10:00:00.000Z",
+        "transactionCount": 50,
+        "size": "2048000"
       }
+    ],
+    "pagination": {
+      "limit": 20,
+      "offset": 0,
+      "total": 12345678
     }
-    ```
+  }
+  ```
 
-- **`GET /mempool/transactions`**
-  - **Description**: Retrieves a list of transactions currently in the mempool.
-  - **Query Parameters**:
-    - `status=pending|proposed` (defaults to all)
-    - `limit=100`
-    - `page=1`
-  - **Response**: `{ "data": [ ... ], "pagination": { ... } }` where each object in `data` is a transaction summary.
+### 3.4. Transaction API
 
-#### Blocks
+#### Get Transaction by Hash
+- **Endpoint**: `GET /api/transactions/:hash`
+- **Description**: Returns detailed information about a specific transaction.
+- **Parameters**:
+  - `hash` (path): Transaction hash (hex string)
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "txHash": "0x...abcd",
+      "status": "confirmed",
+      "blockNumber": "12345678",
+      "blockHash": "0x...ffaa",
+      "txIndexInBlock": 12,
+      "timestamp": "2023-10-27T10:00:18.789Z",
+      "fee": "10000",
+      "size": "512",
+      "cycles": "3000000",
+      "inputsCount": 2,
+      "outputsCount": 3
+    }
+  }
+  ```
 
-- **`GET /blocks`**
-  - **Description**: Retrieves a paginated list of the most recent blocks, ordered by block number descending.
-  - **Query Parameters**: `limit=20`, `
+#### List Transactions by Status
+- **Endpoint**: `GET /api/transactions`
+- **Description**: Returns a paginated list of transactions filtered by status.
+- **Query Parameters**:
+  - `status` (optional): Transaction status (`pending`, `proposed`, `confirmed`)
+  - `limit` (optional): Number of transactions to return (default: 20, max: 100)
+  - `offset` (optional): Number of transactions to skip (default: 0)
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "txHash": "0x...abcd",
+        "status": "confirmed",
+        "timestamp": "2023-10-27T10:00:18.789Z",
+        "fee": "10000",
+        "size": "512",
+        "cycles": "3000000"
+      }
+    ],
+    "pagination": {
+      "limit": 20,
+      "offset": 0,
+      "total": 1500
+    }
+  }
+  ```
+
+#### Get Mempool Transactions
+- **Endpoint**: `GET /api/transactions/mempool`
+- **Description**: Returns all pending transactions in the mempool.
+- **Query Parameters**:
+  - `limit` (optional): Number of transactions to return (default: 50, max: 200)
+  - `offset` (optional): Number of transactions to skip (default: 0)
+- **Response**: Same format as transaction list
+
+#### Get Block Transactions
+- **Endpoint**: `GET /api/blocks/:blockNumber/transactions`
+- **Description**: Returns all transactions in a specific block.
+- **Parameters**:
+  - `blockNumber` (path): Block number (integer)
+- **Query Parameters**:
+  - `limit` (optional): Number of transactions to return (default: 50, max: 200)
+  - `offset` (optional): Number of transactions to skip (default: 0)
+- **Response**: Same format as transaction list
 
 ---
 *This document was generated by an AI coding assistant.* 

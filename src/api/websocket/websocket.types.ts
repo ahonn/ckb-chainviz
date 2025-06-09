@@ -11,6 +11,7 @@ export interface ServerMessage {
 
 export type EventType =
   | 'block.finalized'
+  | 'chain.reorg'
   | 'transaction.pending'
   | 'transaction.proposed'
   | 'transaction.confirmed'
@@ -61,6 +62,18 @@ export interface TransactionRejectedPayload {
   txHash: string;
   timestamp: string;
   reason: string;
+}
+
+export interface ChainReorgPayload {
+  reorgDepth: number;
+  newTip: {
+    blockNumber: string;
+    blockHash: string;
+  };
+  oldTip: {
+    blockNumber: string;
+    blockHash: string;
+  };
 }
 
 export type ChannelType = 'chain' | 'transactions';
