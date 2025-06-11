@@ -49,7 +49,7 @@ Clients manage subscriptions by sending messages to the server.
 Provides macroscopic events about the blockchain's overall state.
 
 - **Event: `block.finalized`**
-  - **Description**: Fired when a new block is confirmed as part of the canonical chain. The payload includes summaries of all transactions confirmed in this block, making it ideal for real-time visualization without requiring follow-up API calls.
+  - **Description**: Fired when a new block is confirmed as part of the canonical chain. The payload includes summaries of all transactions confirmed in this block, making it ideal for real-time updates without requiring follow-up API calls.
   - **Payload**:
     ```json
     {
@@ -160,7 +160,7 @@ The HTTP REST API provides access to the current state of blockchain resources. 
 
 #### 3.2.1. Get Latest Block
 
-Retrieves the most recent block information for visualization purposes (e.g., rocket launch animation).
+Retrieves the most recent block information.
 
 - **Endpoint**: `GET /blocks/latest`
 - **Description**: Returns the latest confirmed block with basic information.
@@ -185,7 +185,7 @@ GET /api/v1/blocks/latest
 
 #### 3.2.2. Get Block by Number
 
-Retrieves detailed information for a specific block (e.g., for when users click on a rocket).
+Retrieves detailed information for a specific block.
 
 - **Endpoint**: `GET /blocks/{blockNumber}`
 - **Description**: Returns detailed information for the specified block, including all transactions.
@@ -220,7 +220,7 @@ GET /api/v1/blocks/12345678
 
 #### 3.3.1. Get Transaction Details
 
-Retrieves detailed information for a specific transaction (e.g., for when users click on an animal).
+Retrieves detailed information for a specific transaction.
 
 - **Endpoint**: `GET /transactions/{txHash}`
 - **Description**: Returns complete transaction information including inputs, outputs, and current status.
