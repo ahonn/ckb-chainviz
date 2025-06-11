@@ -19,29 +19,53 @@ The WebSocket API provides real-time, incremental updates about the blockchain. 
 
 ### 2.1. Connection
 
-- **Endpoint**: `ws://your-api-domain.com/` (or `wss://`)
-- **Protocol**: Standard WebSocket protocol. All messages are in JSON format.
+- **Endpoint**: `ws://localhost:3000/` (or `wss://` for production)
+- **Protocol**: Socket.IO protocol with JSON messages.
 
 ### 2.2. Communication Protocol
 
-Clients manage subscriptions by sending messages to the server.
+Clients manage subscriptions by sending messages to the server using Socket.IO events.
 
 - **Client -> Server Message**:
   ```json
+  // Emit on 'message' event
   {
     "action": "subscribe" | "unsubscribe",
     "channel": "chain" | "transactions"
   }
   ```
 
-- **Server -> Client Message**:
-  ```json
-  {
-    "channel": "chain" | "transactions",
-    "type": "event.name",
-    "payload": { ... }
-  }
-  ```
+- **Server -> Client Messages**:
+  - **Subscription confirmations**:
+    ```json
+    // Received on 'subscribed' event
+    {
+      "channel": "chain" | "transactions"
+    }
+    
+    // Received on 'unsubscribed' event
+    {
+      "channel": "chain" | "transactions"
+    }
+    ```
+  
+  - **Data events**:
+    ```json
+    // Received on 'message' event
+    {
+      "channel": "chain" | "transactions",
+      "type": "event.name",
+      "payload": { ... }
+    }
+    ```
+
+  - **Error messages**:
+    ```json
+    // Received on 'error' event
+    {
+      "message": "Error description"
+    }
+    ```
 
 ### 2.3. Channels and Events
 
@@ -63,29 +87,9 @@ Provides macroscopic events about the blockchain's overall state.
       "unclesCount": 1,
       "transactions": [
         {
-          "txHash": "0x...txhash1",
-          "fee": "10000",
-          "size": "512",
-          "cycles": "3000000"
+          "txHash": "0x...txhash1"
         }
       ]
-    }
-    ```
-
-- **Event: `chain.reorg`**
-  - **Description**: Fired when a chain reorganization is detected. This is a critical event for clients to maintain data consistency.
-  - **Payload**:
-    ```json
-    {
-      "reorgDepth": 3,
-      "newTip": {
-        "blockNumber": "12345675",
-        "blockHash": "0x...newtip"
-      },
-      "oldTip": {
-        "blockNumber": "12345678",
-        "blockHash": "0x...oldtip"
-      }
     }
     ```
 
@@ -153,8 +157,9 @@ The HTTP REST API provides access to the current state of blockchain resources. 
 
 ### 3.1. Base URL
 
-- **Base URL**: `https://your-api-domain.com/api/v1`
+- **Base URL**: `http://localhost:3000/api/v1` (development)
 - **Content-Type**: All requests and responses use `application/json`
+- **CORS**: Enabled for all origins (should be restricted in production)
 
 ### 3.2. Block Endpoints
 
@@ -162,7 +167,7 @@ The HTTP REST API provides access to the current state of blockchain resources. 
 
 Retrieves the most recent block information.
 
-- **Endpoint**: `GET /blocks/latest`
+- **Endpoint**: `GET /api/v1/blocks/latest`
 - **Description**: Returns the latest confirmed block with basic information.
 
 **Response:**
@@ -187,8 +192,10 @@ GET /api/v1/blocks/latest
 
 Retrieves detailed information for a specific block.
 
-- **Endpoint**: `GET /blocks/{blockNumber}`
+- **Endpoint**: `GET /api/v1/blocks/{blockNumber}`
 - **Description**: Returns detailed information for the specified block, including all transactions.
+- **Parameters**:
+  - `blockNumber` (path): Block number as a string of digits
 
 **Response:**
 ```json
@@ -222,8 +229,10 @@ GET /api/v1/blocks/12345678
 
 Retrieves detailed information for a specific transaction.
 
-- **Endpoint**: `GET /transactions/{txHash}`
+- **Endpoint**: `GET /api/v1/transactions/{txHash}`
 - **Description**: Returns complete transaction information including inputs, outputs, and current status.
+- **Parameters**:
+  - `txHash` (path): Transaction hash as a hex string starting with 0x
 
 **Response:**
 ```json
@@ -240,7 +249,7 @@ Retrieves detailed information for a specific transaction.
       {
         "previousOutput": {
           "txHash": "0x...prev",
-          "index": "0x0"
+          "index": "0"
         },
         "since": "0x0"
       }
@@ -259,6 +268,11 @@ Retrieves detailed information for a specific transaction.
 }
 ```
 
+**Transaction Status Values:**
+- `pending`: Transaction is in mempool but not yet proposed
+- `proposed`: Transaction is included in a block's proposals
+- `confirmed`: Transaction is confirmed on-chain
+
 **Example Request:**
 ```
 GET /api/v1/transactions/0x...abcd
@@ -270,7 +284,7 @@ GET /api/v1/transactions/0x...abcd
 
 Retrieves a complete snapshot of the current blockchain state for initial page loading.
 
-- **Endpoint**: `GET /snapshot`
+- **Endpoint**: `GET /api/v1/snapshot`
 - **Description**: Returns the current state including latest block, pending transactions, and proposed transactions in a single request for efficient initial page loading.
 
 **Response:**
@@ -322,34 +336,24 @@ GET /api/v1/snapshot
 All successful API responses follow this structure:
 
 - `data`: The main payload containing the requested resource(s)
-- `pagination` (for list endpoints): Pagination information
+- `timestamp` (for snapshot endpoint): Server timestamp when response was generated
 
 #### 3.5.2. Error Response Structure
 
-Error responses follow this structure:
+Error responses are handled by a global exception filter and follow this structure:
 
 ```json
 {
-  "error": {
-    "code": "INVALID_PARAMETER",
-    "message": "Page size exceeds maximum limit of 1000",
-    "details": {
-      "parameter": "pageSize",
-      "provided": 1500,
-      "maximum": 1000
-    }
-  },
-  "timestamp": "2023-10-27T10:00:20.000Z"
+  "statusCode": 404,
+  "message": "Block 12345678 not found",
+  "timestamp": "2023-10-27T10:00:20.000Z",
+  "path": "/api/v1/blocks/12345678"
 }
 ```
 
 #### 3.5.3. HTTP Status Codes
 
 - `200 OK`: Request successful
-- `400 Bad Request`: Invalid request parameters
-- `404 Not Found`: Resource not found
-- `429 Too Many Requests`: Rate limit exceeded
+- `400 Bad Request`: Invalid request parameters (e.g., invalid block number format, invalid transaction hash format)
+- `404 Not Found`: Resource not found (e.g., block or transaction not found)
 - `500 Internal Server Error`: Server error
-
----
-*This document was generated by an AI coding assistant.* 
