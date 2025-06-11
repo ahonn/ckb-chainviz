@@ -1,6 +1,6 @@
 # CKB ChainViz
 
-A real-time CKB blockchain data service providing WebSocket events and REST APIs for blockchain visualization and monitoring applications.
+A real-time CKB blockchain data service providing WebSocket events and REST APIs for blockchain visualization.
 
 ## 🌟 Features
 
